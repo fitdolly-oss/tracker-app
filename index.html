@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout Tracker">
+<title>Workout Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --accent: #e91e8c;
+    --accent-light: #fdf0f7;
+    --accent-dark: #c4167a;
+    --dark: #1a1a1a;
+    --gray: #666;
+    --light-gray: #f5f5f5;
+    --border: #e0e0e0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #fafafa;
+    color: var(--dark);
+    padding: 0 0 100px 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: white;
+    padding: 20px 16px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .header-left h1 { font-size: 20px; font-weight: 700; }
+  .header-left p { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+  .settings-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .settings-btn:active { background: rgba(255,255,255,0.35); }
+
+  .day-selector {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: white;
+    border-bottom: 1px solid var(--border);
+  }
+  .day-btn {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .day-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .workout-section { padding: 16px; }
+  .workout-title { font-size: 16px; font-weight: 700; color: var(--accent-dark); margin-bottom: 4px; }
+  .workout-subtitle { font-size: 12px; color: var(--gray); margin-bottom: 16px; }
+
+  .exercise-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--accent);
+  }
+  .exercise-name { font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 2px; }
+  .exercise-target { font-size: 12px; color: var(--gray); margin-bottom: 10px; }
+  .sets-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .set-input-group { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .set-label { font-size: 10px; font-weight: 600; color: var(--gray); text-transform: uppercase; }
+  .set-input {
+    width: 72px;
+    padding: 8px 4px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    background: var(--light-gray);
+    color: var(--dark);
+    transition: border-color 0.2s;
+  }
+  .set-input:focus { outline: none; border-color: var(--accent); background: white; }
+  .set-input.filled { border-color: var(--accent); background: var(--accent-light); }
+
+  .notes-input {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--light-gray);
+    color: var(--dark);
+    resize: none;
+  }
+  .notes-input:focus { outline: none; border-color: var(--accent); background: white; }
+
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:active { background: var(--accent-dark); }
+  .btn-secondary { background: var(--light-gray); color: var(--dark); flex: 0.6; }
+  .btn-secondary:active { background: var(--border); }
+
+  .session-info {
+    background: white;
+    margin: 16px;
+    padding: 14px;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .session-info label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .session-info input, .session-info select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    background: var(--light-gray);
+  }
+  .session-info input:focus, .session-info select:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .checkbox-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+  .checkbox-row label { margin-bottom: 0; font-size: 14px; }
+
+  /* History */
+  .history-section { padding: 16px; }
+  .history-card {
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .history-header {
+    padding: 14px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .history-header:active { background: var(--light-gray); }
+  .history-date { font-size: 14px; font-weight: 700; color: var(--dark); }
+  .history-type { font-size: 13px; color: var(--accent-dark); font-weight: 600; }
+  .history-summary { font-size: 12px; color: var(--gray); margin-top: 2px; }
+  .history-arrow {
+    font-size: 18px;
+    color: var(--gray);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .history-card.open .history-arrow { transform: rotate(180deg); }
+  .history-detail { display: none; padding: 0 14px 14px; border-top: 1px solid var(--border); }
+  .history-card.open .history-detail { display: block; }
+  .history-exercise { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .history-exercise:last-child { border-bottom: none; }
+  .history-ex-name { font-size: 13px; font-weight: 700; color: var(--dark); }
+  .history-ex-name.skipped { color: var(--gray); text-decoration: line-through; }
+  .history-ex-sets { font-size: 13px; color: var(--accent-dark); font-weight: 600; margin-top: 2px; }
+  .history-ex-notes { font-size: 12px; color: var(--gray); font-style: italic; margin-top: 2px; }
+  .history-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .history-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .history-btn.delete { color: #e74c3c; border-color: #e74c3c; }
+
+  /* Focus */
+  .focus-section { padding: 16px; }
+  .focus-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--accent);
+  }
+  .focus-card.priority { border-left-color: #e74c3c; }
+  .focus-card.progress { border-left-color: #2ecc71; }
+  .focus-card.reminder { border-left-color: #f39c12; }
+  .focus-title { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+  .focus-detail { font-size: 13px; color: var(--gray); line-height: 1.4; }
+  .focus-category { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin: 20px 0 10px; }
+  .focus-category:first-child { margin-top: 0; }
+
+  /* Tab bar */
+  .tab-bar { display: flex; background: white; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .hidden { display: none; }
+
+  /* Settings modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 380px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--dark); }
+  .modal label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray);
+    display: block;
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal input[type="text"], .modal input[type="url"] {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--light-gray);
+  }
+  .modal input:focus { outline: none; border-color: var(--accent); background: white; }
+  .color-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .color-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .color-swatch.active { border-color: var(--dark); transform: scale(1.15); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions .btn { font-size: 14px; padding: 12px; }
+  .sync-status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .sync-status.connected { background: #e8f5e9; color: #2e7d32; }
+  .sync-status.offline { background: #fff3e0; color: #e65100; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1 id="appTitle">Tay's Workout Tracker</h1>
+    <p id="headerDate"></p>
+  </div>
+  <button class="settings-btn" onclick="openSettings()">&#9881;</button>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('log')">Log</button>
+  <button class="tab-btn" onclick="showTab('focus')">Focus</button>
+  <button class="tab-btn" onclick="showTab('history')">History</button>
+</div>
+
+<div id="logTab">
+  <div class="session-info">
+    <label>Date</label>
+    <input type="date" id="sessionDate">
+    <div class="checkbox-row">
+      <input type="checkbox" id="preworkout">
+      <label for="preworkout">Pre-workout taken</label>
+    </div>
+  </div>
+  <div class="day-selector" id="daySelector"></div>
+  <div class="workout-section" id="workoutSection"></div>
+</div>
+
+<div id="focusTab" class="hidden">
+  <div class="focus-section" id="focusSection"></div>
+</div>
+
+<div id="historyTab" class="hidden">
+  <div class="history-section" id="historySection"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-secondary" onclick="clearSession()">Clear</button>
+  <button class="btn btn-primary" onclick="saveWorkout()">Save Workout</button>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label>Your Name</label>
+    <input type="text" id="settingsName" placeholder="e.g. Taylor">
+    <label>Theme Color</label>
+    <div class="color-grid" id="colorGrid"></div>
+    <label>Supabase URL</label>
+    <input type="url" id="settingsSupaUrl" placeholder="https://xxx.supabase.co">
+    <label>Supabase Anon Key</label>
+    <input type="text" id="settingsSupaKey" placeholder="eyJ...">
+    <div id="syncStatus"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ COLOR THEMES ============
+const COLORS = [
+  { name: "Pink", accent: "#e91e8c", dark: "#c4167a", light: "#fdf0f7" },
+  { name: "Purple", accent: "#7c3aed", dark: "#6d28d9", light: "#f5f0ff" },
+  { name: "Blue", accent: "#2563eb", dark: "#1d4ed8", light: "#eff6ff" },
+  { name: "Teal", accent: "#0d9488", dark: "#0f766e", light: "#f0fdfa" },
+  { name: "Green", accent: "#16a34a", dark: "#15803d", light: "#f0fdf4" },
+  { name: "Orange", accent: "#ea580c", dark: "#c2410c", light: "#fff7ed" },
+  { name: "Red", accent: "#dc2626", dark: "#b91c1c", light: "#fef2f2" },
+  { name: "Slate", accent: "#475569", dark: "#334155", light: "#f8fafc" },
+  { name: "Rose", accent: "#e11d48", dark: "#be123c", light: "#fff1f2" },
+  { name: "Gold", accent: "#ca8a04", dark: "#a16207", light: "#fefce8" }
+];
+
+// ============ WORKOUTS ============
+const WORKOUTS = {
+  "Lower A": {
+    title: "LOWER A \u2014 Glute & Hamstring Strength",
+    subtitle: "Heavy compounds, hip-dominant | Rest: 2-3 min heavy, 90s accessories",
+    exercises: [
+      { name: "Barbell Hip Thrust", target: "4x6-8 | Tempo 2-1-1", sets: 4 },
+      { name: "Romanian Deadlift", target: "4x6-8 | Tempo 3-1-1", sets: 4 },
+      { name: "Bulgarian Split Squat", target: "3x8-10/leg | DBs", sets: 3 },
+      { name: "Lying Leg Curl", target: "3x8-10 | Tempo 2-1-2", sets: 3 },
+      { name: "Cable Pull-Through", target: "3x12-15 | Tempo 2-1-2", sets: 3 },
+      { name: "Hip Abduction", target: "3x15-20 | 2-sec hold", sets: 3 }
+    ]
+  },
+  "Upper A": {
+    title: "UPPER A \u2014 Shoulders & Back Hypertrophy",
+    subtitle: "Shoulder capping, back width | Rest: 60-90s",
+    exercises: [
+      { name: "Seated DB Overhead Press", target: "4x8-10 | Tempo 2-1-1", sets: 4 },
+      { name: "Cable Lateral Raise", target: "4x12-15 | Tempo 2-1-2", sets: 4 },
+      { name: "Wide-Grip Lat Pulldown", target: "3x10-12 | Tempo 2-1-2", sets: 3 },
+      { name: "Rear Delt Fly", target: "4x12-15 | Tempo 2-2-1", sets: 4 },
+      { name: "Seated Cable Row", target: "3x10-12 | Tempo 2-1-2", sets: 3 },
+      { name: "Face Pulls", target: "3x15-20 | Tempo 2-2-1", sets: 3 }
+    ]
+  },
+  "Lower B": {
+    title: "LOWER B \u2014 Glute & Quad Hypertrophy",
+    subtitle: "Moderate loads, higher reps | Rest: 90s, 60s isolation",
+    exercises: [
+      { name: "Barbell Back Squat", target: "4x10-12 | Tempo 3-1-1", sets: 4 },
+      { name: "Walking Lunges (DB)", target: "3x12-15/leg | Tempo 2-1-1", sets: 3 },
+      { name: "Leg Press", target: "3x12-15 | Feet high & wide", sets: 3 },
+      { name: "Back Extension", target: "3x12-15 | Hold DB/plate", sets: 3 },
+      { name: "Leg Extension", target: "3x12-15 | Tempo 2-1-2", sets: 3 },
+      { name: "Band Monster Walk", target: "3x15/direction", sets: 3 }
+    ]
+  },
+  "Upper B": {
+    title: "UPPER B \u2014 Back & Arms",
+    subtitle: "Back thickness, arm detail | Rest: 60-90s",
+    exercises: [
+      { name: "Barbell Row", target: "4x8-10 | Tempo 2-1-2", sets: 4 },
+      { name: "Single-Arm DB Row", target: "3x10-12/arm | Tempo 2-1-2", sets: 3 },
+      { name: "Cable Lateral Raise", target: "3x12-15 | Tempo 2-1-2", sets: 3 },
+      { name: "Rear Delt Cable Fly", target: "3x12-15 | Tempo 2-2-1", sets: 3 },
+      { name: "EZ Bar Curl", target: "3x10-12 | Tempo 2-1-2", sets: 3 },
+      { name: "Overhead Tricep Extension", target: "3x10-12 | Tempo 2-1-2", sets: 3 }
+    ]
+  },
+  "Lower C": {
+    title: "LOWER C \u2014 Glute Pump (High-Rep)",
+    subtitle: "High reps, chase the burn | Rest: 30-60s",
+    exercises: [
+      { name: "Banded Barbell Hip Thrust", target: "3x20-25 | Light + band", sets: 3 },
+      { name: "DB Step-Up", target: "3x15/leg", sets: 3 },
+      { name: "Cable Kickback", target: "3x15-20/leg", sets: 3 },
+      { name: "Sumo Goblet Squat", target: "3x15-20", sets: 3 },
+      { name: "Banded Fire Hydrant", target: "3x20/side", sets: 3 },
+      { name: "Banded Donkey Kick", target: "3x20/side", sets: 3 },
+      { name: "Stomach Vacuums", target: "3x20-30 sec holds", sets: 3 }
+    ]
+  }
+};
+
+// ============ STATE ============
+let currentDay = "Lower A";
+let settings = {
+  name: "Tay",
+  colorIndex: 0,
+  supabaseUrl: "",
+  supabaseKey: ""
+};
+let db = null;
+
+// ============ INIT ============
+function init() {
+  loadSettings();
+  applyTheme();
+
+  const today = new Date();
+  document.getElementById("headerDate").textContent = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  document.getElementById("sessionDate").value = today.toISOString().split("T")[0];
+
+  const dayMap = { 1: "Lower A", 2: "Upper A", 4: "Lower B", 5: "Upper B", 6: "Lower C" };
+  const dow = today.getDay();
+  if (dayMap[dow]) currentDay = dayMap[dow];
+
+  seedHistory();
+  initSupabase();
+  renderDaySelector();
+  renderWorkout();
+}
+
+// ============ SETTINGS ============
+function loadSettings() {
+  const saved = localStorage.getItem("tracker_settings");
+  if (saved) settings = { ...settings, ...JSON.parse(saved) };
+}
+
+function applyTheme() {
+  const c = COLORS[settings.colorIndex] || COLORS[0];
+  document.documentElement.style.setProperty("--accent", c.accent);
+  document.documentElement.style.setProperty("--accent-dark", c.dark);
+  document.documentElement.style.setProperty("--accent-light", c.light);
+  document.getElementById("appTitle").textContent = settings.name + "'s Workout Tracker";
+}
+
+function openSettings() {
+  document.getElementById("settingsName").value = settings.name;
+  document.getElementById("settingsSupaUrl").value = settings.supabaseUrl;
+  document.getElementById("settingsSupaKey").value = settings.supabaseKey;
+
+  const grid = document.getElementById("colorGrid");
+  grid.innerHTML = COLORS.map((c, i) =>
+    `<div class="color-swatch ${i === settings.colorIndex ? 'active' : ''}"
+      style="background:${c.accent}" onclick="pickColor(${i})" title="${c.name}"></div>`
+  ).join("");
+
+  updateSyncStatus();
+  document.getElementById("settingsModal").classList.add("show");
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal").classList.remove("show");
+}
+
+function pickColor(i) {
+  settings.colorIndex = i;
+  document.querySelectorAll(".color-swatch").forEach((s, j) => s.classList.toggle("active", j === i));
+}
+
+function saveSettings() {
+  settings.name = document.getElementById("settingsName").value.trim() || "Tay";
+  settings.supabaseUrl = document.getElementById("settingsSupaUrl").value.trim();
+  settings.supabaseKey = document.getElementById("settingsSupaKey").value.trim();
+  localStorage.setItem("tracker_settings", JSON.stringify(settings));
+  applyTheme();
+  initSupabase();
+  closeSettings();
+  showToast("Settings saved!");
+}
+
+function updateSyncStatus() {
+  const el = document.getElementById("syncStatus");
+  if (db) {
+    el.innerHTML = '<div class="sync-status connected">Cloud sync active</div>';
+  } else {
+    el.innerHTML = '<div class="sync-status offline">Offline mode \u2014 data saved on this device only</div>';
+  }
+}
+
+// ============ SUPABASE ============
+function initSupabase() {
+  if (settings.supabaseUrl && settings.supabaseKey) {
+    try {
+      db = supabase.createClient(settings.supabaseUrl, settings.supabaseKey);
+      console.log("Supabase connected");
+    } catch (e) {
+      console.error("Supabase init failed:", e);
+      db = null;
+    }
+  } else {
+    db = null;
+  }
+}
+
+async function syncToCloud(session) {
+  if (!db) return;
+  try {
+    const { error } = await db.from("workouts").insert({
+      user_name: settings.name,
+      date: session.date,
+      day: session.day,
+      title: session.title,
+      preworkout: session.preworkout,
+      exercises: session.exercises,
+      created_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    console.log("Synced to cloud");
+  } catch (e) {
+    console.error("Cloud sync failed:", e);
+    showToast("Saved locally (cloud sync failed)");
+  }
+}
+
+async function loadFromCloud() {
+  if (!db) return null;
+  try {
+    const { data, error } = await db
+      .from("workouts")
+      .select("*")
+      .eq("user_name", settings.name)
+      .order("date", { ascending: false });
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.error("Cloud load failed:", e);
+    return null;
+  }
+}
+
+async function deleteFromCloud(session) {
+  if (!db) return;
+  try {
+    await db.from("workouts")
+      .delete()
+      .eq("user_name", settings.name)
+      .eq("date", session.date)
+      .eq("day", session.day);
+  } catch (e) {
+    console.error("Cloud delete failed:", e);
+  }
+}
+
+// ============ SEED HISTORY ============
+function seedHistory() {
+  const existing = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+  if (existing.length > 0) return;
+
+  const pastSessions = [
+    {
+      date: "2026-02-15", day: "Lower A",
+      title: "LOWER A \u2014 Glute & Hamstring Strength",
+      preworkout: false,
+      exercises: [
+        { name: "Romanian Deadlift", sets: ["95x8","95x8","95x8","95x8"], notes: "", skipped: false },
+        { name: "Barbell Hip Thrust", sets: ["135x8","185x8","185x8","205x8"], notes: "Ramped up weight each set", skipped: false },
+        { name: "Bulgarian Split Squat", sets: ["30x8","30x8","35x8"], notes: "DBs", skipped: false },
+        { name: "Cable Pull-Through", sets: ["25x12","25x12","35x12"], notes: "", skipped: false },
+        { name: "Lying Leg Curl", sets: ["40x12","50x12","55x8"], notes: "Rep drop on last set at heavier weight", skipped: false },
+        { name: "Hip Abduction", sets: ["60x15","60x15","70x15"], notes: "", skipped: false }
+      ],
+      timestamp: new Date("2026-02-15").getTime()
+    },
+    {
+      date: "2026-02-17", day: "Upper A",
+      title: "UPPER A \u2014 Shoulders & Back Hypertrophy",
+      preworkout: false,
+      exercises: [
+        { name: "Lateral Raise", sets: ["10x15","10x15"], notes: "Warm-up", skipped: false },
+        { name: "Seated DB Overhead Press", sets: ["20x10","30x10","30x10","30x10"], notes: "Ramped first set", skipped: false },
+        { name: "Wide-Grip Lat Pulldown", sets: ["70x10","55x10","55x10","55x10"], notes: "Dropped weight after first set; completed 4 sets at 55", skipped: false },
+        { name: "Cable Lateral Raise", sets: ["5x10","5x10","5x10","5x10"], notes: "", skipped: false },
+        { name: "Rear Delt Fly", sets: [], notes: "Skipped", skipped: true },
+        { name: "Seated Cable Row", sets: [], notes: "Skipped", skipped: true },
+        { name: "Face Pulls", sets: [], notes: "Skipped", skipped: true }
+      ],
+      timestamp: new Date("2026-02-17").getTime()
+    },
+    {
+      date: "2026-02-19", day: "Lower B",
+      title: "LOWER B \u2014 Glute & Quad Hypertrophy",
+      preworkout: false,
+      exercises: [
+        { name: "Barbell Back Squat", sets: ["95x8","115x8","115x8","115x8"], notes: "", skipped: false },
+        { name: "Walking Lunges (DB)", sets: ["25x12","25x12","30x12"], notes: "Bumped weight on last set", skipped: false },
+        { name: "Leg Press", sets: ["208x12","258x12","298x12"], notes: "Solid progression across sets", skipped: false },
+        { name: "Back Extension", sets: ["25x15","25x15","25x15"], notes: "Holding 25 lb plate", skipped: false },
+        { name: "Leg Extension", sets: ["70x15","70x15","70x15"], notes: "", skipped: false },
+        { name: "Band Monster Walk", sets: [], notes: "Skipped", skipped: true }
+      ],
+      timestamp: new Date("2026-02-19").getTime()
+    },
+    {
+      date: "2026-02-21", day: "Upper B",
+      title: "UPPER B \u2014 Back & Arms",
+      preworkout: false,
+      exercises: [
+        { name: "Barbell Row", sets: ["45x8","65x8","65x8","85x5"], notes: "Ramped up; rep drop at 85", skipped: false },
+        { name: "Single-Arm DB Row", sets: ["17.5x10","17.5x10","20x10"], notes: "", skipped: false },
+        { name: "Cable Lateral Raise", sets: ["5x10","5x12","5x12"], notes: "", skipped: false },
+        { name: "Rear Delt Cable Fly", sets: [], notes: "Skipped", skipped: true },
+        { name: "Bicep Curl", sets: ["30x10","30x10","30x10"], notes: "", skipped: false },
+        { name: "Overhead Tricep Extension", sets: ["20x10","15x10","15x10","15x10"], notes: "Dropped weight after first set", skipped: false }
+      ],
+      timestamp: new Date("2026-02-21").getTime()
+    },
+    {
+      date: "2026-02-22", day: "Lower A",
+      title: "LOWER A \u2014 Glute & Hamstring Strength (repeat)",
+      preworkout: false,
+      exercises: [
+        { name: "Romanian Deadlift", sets: ["95x8","115x8","115x8"], notes: "Heavier than first Lower A", skipped: false },
+        { name: "Barbell Hip Thrust", sets: ["135x8","185x8","235x8","235x8"], notes: "PR territory \u2014 235 for reps", skipped: false },
+        { name: "Bulgarian Split Squat", sets: ["30x8","40x8","40x8"], notes: "Up from first session", skipped: false },
+        { name: "Cable Pull-Through", sets: ["25x12","30x12","35x12"], notes: "", skipped: false }
+      ],
+      timestamp: new Date("2026-02-22").getTime()
+    },
+    {
+      date: "2026-02-24", day: "Upper A",
+      title: "UPPER A \u2014 Shoulders & Back (repeat)",
+      preworkout: false,
+      exercises: [
+        { name: "Lateral Raise", sets: ["10x15","10x15"], notes: "", skipped: false },
+        { name: "Seated DB Overhead Press", sets: ["25x10","30x10","30x10","35x8"], notes: "Pushed to 35 on last set", skipped: false },
+        { name: "Cable Lateral Raise", sets: ["5x10","5x10","5x10","5x10"], notes: "4 sets", skipped: false },
+        { name: "Wide-Grip Lat Pulldown", sets: ["55x10","55x10","55x10","70x10"], notes: "Bumped to 70 on final set", skipped: false },
+        { name: "Rear Delt Fly", sets: ["40x12","40x12","40x12","55x12"], notes: "Bumped to 55 on final set", skipped: false },
+        { name: "Seated Cable Row", sets: ["40x10","40x10","55x10"], notes: "", skipped: false },
+        { name: "Face Pulls", sets: ["25x15","30x15","30x15"], notes: "", skipped: false }
+      ],
+      timestamp: new Date("2026-02-24").getTime()
+    },
+    {
+      date: "2026-03-05", day: "Lower B",
+      title: "LOWER B \u2014 Glute & Quad Hypertrophy",
+      preworkout: true,
+      exercises: [
+        { name: "Barbell Back Squat", sets: ["115x10","135x10","135x10","135x10"], notes: "Up from 115 \u2014 hit 135 for 3 sets", skipped: false },
+        { name: "Walking Lunges (DB)", sets: ["25x12","25x12","30x12"], notes: "", skipped: false },
+        { name: "Leg Press", sets: ["298x12","298x12","298x12"], notes: "Consistent across all 3 sets", skipped: false },
+        { name: "Back Extension", sets: ["25x12","25x12","25x12"], notes: "Holding 25 lb plate", skipped: false },
+        { name: "Leg Extension", sets: ["70x12","70x12","70x12"], notes: "", skipped: false },
+        { name: "Band Monster Walk", sets: [], notes: "Skipped", skipped: true }
+      ],
+      timestamp: new Date("2026-03-05T14:30:00").getTime()
+    },
+    {
+      date: "2026-03-08", day: "Upper B",
+      title: "UPPER B \u2014 Back & Arms",
+      preworkout: true,
+      exercises: [
+        { name: "Barbell Row", sets: ["45x8","65x8","65x8","70x7","85x4"], notes: "Still building up", skipped: false },
+        { name: "Single-Arm DB Row", sets: ["17.5x10","17.5x10","20x10"], notes: "", skipped: false },
+        { name: "Cable Lateral Raise", sets: ["5x8-12","5x8-12","5x8-12","5x8-12"], notes: "Used to only do 5 reps at a time \u2014 now can do 8 straight", skipped: false },
+        { name: "Bicep Curl", sets: ["30x10","30x10","30x10"], notes: "Consistent", skipped: false },
+        { name: "Rear Delt Fly", sets: ["40x12","55x8","45x15"], notes: "Tried 55 but reps dropped; backed down to 45", skipped: false },
+        { name: "Overhead Tricep Extension", sets: [], notes: "Skipped", skipped: true }
+      ],
+      timestamp: new Date("2026-03-08T15:17:00").getTime()
+    }
+  ];
+
+  localStorage.setItem("tay_workouts", JSON.stringify(pastSessions));
+}
+
+// ============ RENDER ============
+function renderDaySelector() {
+  const sel = document.getElementById("daySelector");
+  sel.innerHTML = Object.keys(WORKOUTS).map(day =>
+    `<button class="day-btn ${day === currentDay ? 'active' : ''}" onclick="selectDay('${day}')">${day}</button>`
+  ).join("");
+}
+
+function selectDay(day) {
+  currentDay = day;
+  renderDaySelector();
+  renderWorkout();
+}
+
+function renderWorkout() {
+  const w = WORKOUTS[currentDay];
+  const section = document.getElementById("workoutSection");
+
+  let html = `<div class="workout-title">${w.title}</div>
+    <div class="workout-subtitle">${w.subtitle}</div>`;
+
+  w.exercises.forEach((ex, i) => {
+    html += `<div class="exercise-card">
+      <div class="exercise-name">${ex.name}</div>
+      <div class="exercise-target">${ex.target}</div>
+      <div class="sets-row">`;
+    for (let s = 0; s < ex.sets; s++) {
+      html += `<div class="set-input-group">
+        <span class="set-label">Set ${s + 1}</span>
+        <input class="set-input" type="text" inputmode="decimal" placeholder="wt x reps"
+          id="ex${i}_set${s}" oninput="markFilled(this)">
+      </div>`;
+    }
+    html += `<div class="set-input-group">
+        <span class="set-label">Extra</span>
+        <input class="set-input" type="text" inputmode="decimal" placeholder="+"
+          id="ex${i}_set${ex.sets}" oninput="markFilled(this)">
+      </div>`;
+    html += `</div>
+      <textarea class="notes-input" rows="1" placeholder="Notes..." id="ex${i}_notes"></textarea>
+    </div>`;
+  });
+
+  section.innerHTML = html;
+}
+
+function markFilled(el) {
+  el.classList.toggle("filled", el.value.trim() !== "");
+}
+
+// ============ SAVE ============
+async function saveWorkout() {
+  const w = WORKOUTS[currentDay];
+  const date = document.getElementById("sessionDate").value;
+  const preworkout = document.getElementById("preworkout").checked;
+
+  if (!date) { showToast("Pick a date first"); return; }
+
+  const exercises = [];
+  let hasData = false;
+
+  w.exercises.forEach((ex, i) => {
+    const sets = [];
+    for (let s = 0; s <= ex.sets; s++) {
+      const val = document.getElementById(`ex${i}_set${s}`)?.value?.trim() || "";
+      if (val) { sets.push(val); hasData = true; }
+    }
+    const notes = document.getElementById(`ex${i}_notes`)?.value?.trim() || "";
+    exercises.push({ name: ex.name, target: ex.target, sets, notes, skipped: sets.length === 0 });
+  });
+
+  if (!hasData) { showToast("Log at least one set"); return; }
+
+  const session = { date, day: currentDay, title: w.title, preworkout, exercises, timestamp: Date.now() };
+
+  // Save locally
+  const history = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+  history.unshift(session);
+  localStorage.setItem("tay_workouts", JSON.stringify(history));
+
+  // Sync to cloud
+  await syncToCloud(session);
+
+  showToast("Workout saved!");
+  renderHistory();
+}
+
+function clearSession() {
+  if (confirm("Clear all inputs?")) renderWorkout();
+}
+
+// ============ TABS ============
+function showTab(tab) {
+  const tabs = ["log", "focus", "history"];
+  document.querySelectorAll(".tab-btn").forEach((b, i) => b.classList.toggle("active", tabs[i] === tab));
+  tabs.forEach(t => document.getElementById(t + "Tab").classList.toggle("hidden", t !== tab));
+  if (tab === "history") renderHistory();
+  if (tab === "focus") renderFocus();
+}
+
+// ============ HISTORY ============
+async function renderHistory() {
+  // Try cloud first, fall back to local
+  let history = null;
+  if (db) {
+    const cloudData = await loadFromCloud();
+    if (cloudData && cloudData.length > 0) {
+      history = cloudData.map(r => ({
+        date: r.date, day: r.day, title: r.title,
+        preworkout: r.preworkout, exercises: r.exercises,
+        timestamp: new Date(r.created_at).getTime()
+      }));
+    }
+  }
+  if (!history) {
+    history = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+  }
+
+  const section = document.getElementById("historySection");
+
+  if (history.length === 0) {
+    section.innerHTML = '<p style="text-align:center;color:#999;padding:40px 0;">No workouts logged yet</p>';
+    return;
+  }
+
+  section.innerHTML = history.map((s, i) => {
+    const d = new Date(s.date + "T12:00:00");
+    const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const exerciseCount = s.exercises.filter(e => !e.skipped).length;
+    const skippedCount = s.exercises.filter(e => e.skipped).length;
+    const pw = s.preworkout ? " | Pre-workout" : "";
+
+    let exerciseRows = s.exercises.map(ex => {
+      if (ex.skipped) {
+        return `<div class="history-exercise">
+          <div class="history-ex-name skipped">${ex.name} \u2014 Skipped</div>
+        </div>`;
+      }
+      return `<div class="history-exercise">
+        <div class="history-ex-name">${ex.name}</div>
+        <div class="history-ex-sets">${ex.sets.join("  /  ")}</div>
+        ${ex.notes ? `<div class="history-ex-notes">${ex.notes}</div>` : ""}
+      </div>`;
+    }).join("");
+
+    return `<div class="history-card" id="hcard${i}">
+      <div class="history-header" onclick="toggleCard(${i})">
+        <div>
+          <div class="history-date">${dateStr}</div>
+          <div class="history-type">${s.day} \u2014 ${s.title.split("\u2014")[1]?.trim() || ""}</div>
+          <div class="history-summary">${exerciseCount} exercises${skippedCount ? ", " + skippedCount + " skipped" : ""}${pw}</div>
+        </div>
+        <span class="history-arrow">&#9660;</span>
+      </div>
+      <div class="history-detail">
+        ${exerciseRows}
+        <div class="history-actions">
+          <button class="history-btn" onclick="event.stopPropagation();copySession(${i})">Copy</button>
+          <button class="history-btn" onclick="event.stopPropagation();exportSession(${i})">Share</button>
+          <button class="history-btn delete" onclick="event.stopPropagation();deleteSession(${i})">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleCard(i) {
+  document.getElementById("hcard" + i).classList.toggle("open");
+}
+
+function getHistory() {
+  return JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+}
+
+function copySession(idx) {
+  const s = getHistory()[idx];
+  navigator.clipboard.writeText(formatSession(s)).then(() => showToast("Copied!"));
+}
+
+function exportSession(idx) {
+  const s = getHistory()[idx];
+  const text = formatSession(s);
+  if (navigator.share) {
+    navigator.share({ title: `${s.day} \u2014 ${s.date}`, text });
+  } else {
+    navigator.clipboard.writeText(text).then(() => showToast("Copied!"));
+  }
+}
+
+function formatSession(s) {
+  const d = new Date(s.date + "T12:00:00");
+  const dateStr = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  let text = `### ${s.day} \u2014 ${dateStr}`;
+  if (s.preworkout) text += " (pre-workout taken)";
+  text += "\n\n| Exercise | Set 1 | Set 2 | Set 3 | Set 4 | Notes |\n";
+  text += "|----------|-------|-------|-------|-------|-------|\n";
+  s.exercises.forEach(ex => {
+    const sets = [];
+    for (let i = 0; i < 4; i++) sets.push(ex.sets[i] || "\u2014");
+    text += `| ${ex.name} | ${sets.join(" | ")} | ${ex.skipped ? "Skipped" : (ex.notes || "")} |\n`;
+  });
+  return text;
+}
+
+async function deleteSession(idx) {
+  if (!confirm("Delete this workout?")) return;
+  const history = getHistory();
+  const removed = history.splice(idx, 1)[0];
+  localStorage.setItem("tay_workouts", JSON.stringify(history));
+  await deleteFromCloud(removed);
+  renderHistory();
+  showToast("Deleted");
+}
+
+// ============ FOCUS ============
+function renderFocus() {
+  const section = document.getElementById("focusSection");
+  const focus = getWeeklyFocus();
+  let html = "";
+
+  html += `<div class="focus-category">This Week's Priorities</div>`;
+  focus.priorities.forEach(f => {
+    html += `<div class="focus-card priority">
+      <div class="focus-title">${f.title}</div>
+      <div class="focus-detail">${f.detail}</div>
+    </div>`;
+  });
+
+  html += `<div class="focus-category">Progress Wins</div>`;
+  focus.wins.forEach(f => {
+    html += `<div class="focus-card progress">
+      <div class="focus-title">${f.title}</div>
+      <div class="focus-detail">${f.detail}</div>
+    </div>`;
+  });
+
+  html += `<div class="focus-category">Reminders</div>`;
+  focus.reminders.forEach(f => {
+    html += `<div class="focus-card reminder">
+      <div class="focus-title">${f.title}</div>
+      <div class="focus-detail">${f.detail}</div>
+    </div>`;
+  });
+
+  section.innerHTML = html;
+}
+
+function getWeeklyFocus() {
+  return {
+    priorities: [
+      { title: "Do a Lower C day this week", detail: "You haven't done one yet. Pick Saturday for the high-rep glute pump session \u2014 banded hip thrusts, step-ups, kickbacks, goblet squats. Chase the burn." },
+      { title: "Don't skip rear delts & face pulls", detail: "Rear delt fly + face pulls got skipped on Upper A. These are key for the hourglass look \u2014 10 total sets/week is the goal." },
+      { title: "Overhead tricep extension", detail: "Skipped last Upper B. Get it in this week \u2014 long head emphasis matters for arm definition." },
+      { title: "Lat pulldown form check", detail: "Dropped from 70 to 55 early on. You hit 70x10 on Day 6 though. Stay at 55-70 range, focus on full stretch at top and squeezing lats at bottom." }
+    ],
+    wins: [
+      { title: "Hip thrust: 135 \u2192 235", detail: "Hit 235x8 for 2 sets. Huge jump. On track for the +20-30 lb 16-week target already." },
+      { title: "Squat: 95 \u2192 135", detail: "Hit 135x10 for 3 sets on Wednesday. Solid progression with controlled tempo." },
+      { title: "Cable lateral raise endurance", detail: "Used to break up sets and could only do 5 reps at a time \u2014 now doing 8 straight. Real progress." },
+      { title: "Consistent leg press", detail: "298x12 for 3 clean sets. Strong and steady." }
+    ],
+    reminders: [
+      { title: "Get resistance bands", detail: "No bands yet for warm-ups (banded lateral walks, glute bridges, pull-aparts) or Lower C exercises." },
+      { title: "Follow the 3 Lower / 2 Upper split", detail: "Past sessions were alternating Lower/Upper. Stick to: Mon Lower A, Tue Upper A, Thu Lower B, Fri Upper B, Sat Lower C." },
+      { title: "Barbell row \u2014 build before jumping", detail: "Reps dropped to 4-5 at 85. Stay at 65-70 and build to 4x10 before adding weight." },
+      { title: "Log dates on every session", detail: "First 6 sessions had no dates. Keep logging date + time on every workout." }
+    ]
+  };
+}
+
+// ============ TOAST ============
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+init();
+</script>
+</body>
+</html>
