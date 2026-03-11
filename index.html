@@ -141,6 +141,59 @@
   }
   .notes-input:focus { outline: none; border-color: var(--accent); background: white; }
 
+  .add-set-btn {
+    margin-top: 8px;
+    padding: 6px 14px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    background: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .add-set-btn:active { background: var(--accent-light); }
+
+  .custom-exercise-section {
+    padding: 12px;
+  }
+  .add-exercise-btn {
+    width: 100%;
+    padding: 14px;
+    border: 2px dashed var(--accent);
+    border-radius: 12px;
+    background: var(--accent-light);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+  .add-exercise-btn:active { background: var(--border); }
+  .custom-exercise-name {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--light-gray);
+    color: var(--dark);
+    margin-bottom: 6px;
+  }
+  .custom-exercise-name:focus { outline: none; border-color: var(--accent); background: white; }
+  .remove-exercise-btn {
+    margin-top: 6px;
+    padding: 6px 12px;
+    border: 1px solid #e74c3c;
+    border-radius: 6px;
+    background: white;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e74c3c;
+    cursor: pointer;
+  }
+
   .bottom-bar {
     position: fixed;
     bottom: 0;
@@ -406,6 +459,10 @@
   </div>
   <div class="day-selector" id="daySelector"></div>
   <div class="workout-section" id="workoutSection"></div>
+  <div class="custom-exercise-section" id="customExerciseSection"></div>
+  <div style="padding: 0 12px 12px;">
+    <button class="add-exercise-btn" onclick="addCustomExercise()">+ Add Exercise</button>
+  </div>
 </div>
 
 <div id="focusTab" class="hidden">
@@ -826,16 +883,12 @@ function renderWorkout() {
     for (let s = 0; s < ex.sets; s++) {
       html += `<div class="set-input-group">
         <span class="set-label">Set ${s + 1}</span>
-        <input class="set-input" type="text" inputmode="decimal" placeholder="wt x reps"
+        <input class="set-input" type="text" inputmode="text" placeholder="wt x reps"
           id="ex${i}_set${s}" oninput="markFilled(this)">
       </div>`;
     }
-    html += `<div class="set-input-group">
-        <span class="set-label">Extra</span>
-        <input class="set-input" type="text" inputmode="decimal" placeholder="+"
-          id="ex${i}_set${ex.sets}" oninput="markFilled(this)">
-      </div>`;
     html += `</div>
+      <button class="add-set-btn" onclick="addSet(${i})">+ Add Set</button>
       <textarea class="notes-input" rows="1" placeholder="Notes..." id="ex${i}_notes"></textarea>
     </div>`;
   });
@@ -845,6 +898,63 @@ function renderWorkout() {
 
 function markFilled(el) {
   el.classList.toggle("filled", el.value.trim() !== "");
+}
+
+// ============ ADD SET ============
+function addSet(exerciseIdx) {
+  const prefix = `ex${exerciseIdx}_set`;
+  // Find all existing set inputs for this exercise
+  let count = 0;
+  while (document.getElementById(`${prefix}${count}`)) count++;
+  // Create new set input
+  const setsRow = document.querySelector(`#ex${exerciseIdx}_set0`).closest('.sets-row');
+  const div = document.createElement('div');
+  div.className = 'set-input-group';
+  div.innerHTML = `<span class="set-label">Set ${count + 1}</span>
+    <input class="set-input" type="text" inputmode="text" placeholder="wt x reps"
+      id="${prefix}${count}" oninput="markFilled(this)">`;
+  setsRow.appendChild(div);
+}
+
+// ============ CUSTOM EXERCISES ============
+let customExerciseCount = 0;
+
+function addCustomExercise() {
+  const idx = customExerciseCount++;
+  const section = document.getElementById('customExerciseSection');
+  const card = document.createElement('div');
+  card.className = 'exercise-card';
+  card.id = `custom_ex_${idx}`;
+  card.innerHTML = `<input class="custom-exercise-name" type="text" placeholder="Exercise name..." id="custom_name_${idx}">
+    <div class="sets-row">
+      <div class="set-input-group">
+        <span class="set-label">Set 1</span>
+        <input class="set-input" type="text" inputmode="text" placeholder="wt x reps"
+          id="custom_${idx}_set0" oninput="markFilled(this)">
+      </div>
+    </div>
+    <button class="add-set-btn" onclick="addCustomSet(${idx})">+ Add Set</button>
+    <textarea class="notes-input" rows="1" placeholder="Notes..." id="custom_${idx}_notes"></textarea>
+    <button class="remove-exercise-btn" onclick="removeCustomExercise(${idx})">Remove</button>`;
+  section.appendChild(card);
+}
+
+function addCustomSet(customIdx) {
+  const prefix = `custom_${customIdx}_set`;
+  let count = 0;
+  while (document.getElementById(`${prefix}${count}`)) count++;
+  const setsRow = document.querySelector(`#${prefix}0`).closest('.sets-row');
+  const div = document.createElement('div');
+  div.className = 'set-input-group';
+  div.innerHTML = `<span class="set-label">Set ${count + 1}</span>
+    <input class="set-input" type="text" inputmode="text" placeholder="wt x reps"
+      id="${prefix}${count}" oninput="markFilled(this)">`;
+  setsRow.appendChild(div);
+}
+
+function removeCustomExercise(idx) {
+  const el = document.getElementById(`custom_ex_${idx}`);
+  if (el) el.remove();
 }
 
 // ============ SAVE ============
@@ -860,13 +970,32 @@ async function saveWorkout() {
 
   w.exercises.forEach((ex, i) => {
     const sets = [];
-    for (let s = 0; s <= ex.sets; s++) {
-      const val = document.getElementById(`ex${i}_set${s}`)?.value?.trim() || "";
+    let s = 0;
+    while (document.getElementById(`ex${i}_set${s}`)) {
+      const val = document.getElementById(`ex${i}_set${s}`).value.trim();
       if (val) { sets.push(val); hasData = true; }
+      s++;
     }
     const notes = document.getElementById(`ex${i}_notes`)?.value?.trim() || "";
     exercises.push({ name: ex.name, target: ex.target, sets, notes, skipped: sets.length === 0 });
   });
+
+  // Collect custom exercises
+  for (let c = 0; c < customExerciseCount; c++) {
+    const card = document.getElementById(`custom_ex_${c}`);
+    if (!card) continue;
+    const name = document.getElementById(`custom_name_${c}`)?.value?.trim() || "";
+    if (!name) continue;
+    const sets = [];
+    let s = 0;
+    while (document.getElementById(`custom_${c}_set${s}`)) {
+      const val = document.getElementById(`custom_${c}_set${s}`).value.trim();
+      if (val) { sets.push(val); hasData = true; }
+      s++;
+    }
+    const notes = document.getElementById(`custom_${c}_notes`)?.value?.trim() || "";
+    exercises.push({ name, target: "Custom", sets, notes, skipped: sets.length === 0 });
+  }
 
   if (!hasData) { showToast("Log at least one set"); return; }
 
@@ -885,7 +1014,11 @@ async function saveWorkout() {
 }
 
 function clearSession() {
-  if (confirm("Clear all inputs?")) renderWorkout();
+  if (confirm("Clear all inputs?")) {
+    renderWorkout();
+    customExerciseCount = 0;
+    document.getElementById('customExerciseSection').innerHTML = '';
+  }
 }
 
 // ============ TABS ============
@@ -914,6 +1047,13 @@ async function renderHistory() {
   if (!history) {
     history = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
   }
+
+  // Sort latest to earliest
+  history.sort((a, b) => {
+    const dateA = a.timestamp || new Date(a.date).getTime();
+    const dateB = b.timestamp || new Date(b.date).getTime();
+    return dateB - dateA;
+  });
 
   const section = document.getElementById("historySection");
 
