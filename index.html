@@ -733,8 +733,11 @@ async function deleteFromCloud(session) {
 
 // ============ SEED HISTORY ============
 function seedHistory() {
+  const SEED_VERSION = 2;
+  const currentVersion = parseInt(localStorage.getItem("tay_seed_version") || "0");
   const existing = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
-  if (existing.length > 0) return;
+  if (existing.length > 0 && currentVersion >= SEED_VERSION) return;
+  localStorage.setItem("tay_seed_version", SEED_VERSION.toString());
 
   const pastSessions = [
     {
