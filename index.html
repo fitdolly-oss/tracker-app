@@ -194,6 +194,62 @@
     cursor: pointer;
   }
 
+  /* Warm-up section */
+  .warmup-section {
+    background: white;
+    margin: 0 12px 12px;
+    padding: 14px;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid #f39c12;
+  }
+  .warmup-title { font-size: 14px; font-weight: 700; color: #e67e22; margin-bottom: 8px; }
+  .warmup-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .warmup-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+  .warmup-item label { font-size: 13px; color: var(--dark); }
+
+  /* Extras section */
+  .extras-section { padding: 12px; max-width: 100%; overflow: hidden; }
+  .extras-card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--accent);
+  }
+  .extras-card-title { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+  .extras-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--light-gray);
+    color: var(--dark);
+    margin-bottom: 8px;
+  }
+  .extras-input:focus { outline: none; border-color: var(--accent); background: white; }
+  .extras-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--light-gray);
+    color: var(--dark);
+    resize: none;
+  }
+  .extras-textarea:focus { outline: none; border-color: var(--accent); background: white; }
+  .history-extras { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+  .history-extras-label { font-size: 12px; font-weight: 700; color: #e67e22; margin-bottom: 2px; }
+  .history-extras-text { font-size: 12px; color: var(--gray); }
+
   .bottom-bar {
     position: fixed;
     bottom: 0;
@@ -444,6 +500,7 @@
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="showTab('log')">Log</button>
+  <button class="tab-btn" onclick="showTab('extras')">Extras</button>
   <button class="tab-btn" onclick="showTab('focus')">Focus</button>
   <button class="tab-btn" onclick="showTab('history')">History</button>
 </div>
@@ -458,10 +515,39 @@
     </div>
   </div>
   <div class="day-selector" id="daySelector"></div>
+  <div class="warmup-section" id="warmupSection"></div>
   <div class="workout-section" id="workoutSection"></div>
   <div class="custom-exercise-section" id="customExerciseSection"></div>
   <div style="padding: 0 12px 12px;">
     <button class="add-exercise-btn" onclick="addCustomExercise()">+ Add Exercise</button>
+  </div>
+</div>
+
+<div id="extrasTab" class="hidden">
+  <div class="extras-section">
+    <div class="extras-card" style="border-left-color: #2ecc71;">
+      <div class="extras-card-title">Stretching / Mobility</div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="didStretching">
+        <label for="didStretching">Did stretching / mobility work</label>
+      </div>
+      <input class="extras-input" type="text" id="stretchDuration" placeholder="Duration (e.g. 15 min)">
+      <textarea class="extras-textarea" rows="3" id="stretchNotes" placeholder="What did you do? (e.g. hip openers, pigeon pose, foam rolling...)"></textarea>
+    </div>
+    <div class="extras-card" style="border-left-color: #3498db;">
+      <div class="extras-card-title">Cardio</div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="didCardio">
+        <label for="didCardio">Did cardio</label>
+      </div>
+      <input class="extras-input" type="text" id="cardioType" placeholder="Type (e.g. incline walk, cycling, stairmaster)">
+      <input class="extras-input" type="text" id="cardioDuration" placeholder="Duration (e.g. 30 min)">
+      <textarea class="extras-textarea" rows="2" id="cardioNotes" placeholder="Notes (e.g. heart rate, intensity, intervals...)"></textarea>
+    </div>
+    <div class="extras-card" style="border-left-color: #9b59b6;">
+      <div class="extras-card-title">Other</div>
+      <textarea class="extras-textarea" rows="3" id="otherNotes" placeholder="Anything else? (e.g. sauna, cold plunge, posing practice...)"></textarea>
+    </div>
   </div>
 </div>
 
@@ -515,11 +601,30 @@ const COLORS = [
   { name: "Gold", accent: "#ca8a04", dark: "#a16207", light: "#fefce8" }
 ];
 
+// ============ WARM-UPS ============
+const WARMUPS = {
+  lower: [
+    "Incline treadmill walk — 3 min",
+    "Banded lateral walks — 2x15/direction",
+    "Banded glute bridge — 2x15",
+    "Bodyweight squat — 1x10 (3-sec pause)",
+    "Leg swings — 10/direction/leg"
+  ],
+  upper: [
+    "Band pull-aparts — 2x15",
+    "Shoulder dislocates — 2x10",
+    "Scapular push-ups — 1x10",
+    "Arm circles — 10 forward, 10 backward",
+    "Light lateral raises — 1x12 (5 lb)"
+  ]
+};
+
 // ============ WORKOUTS ============
 const WORKOUTS = {
   "Lower A": {
     title: "LOWER A \u2014 Glute & Hamstring Strength",
     subtitle: "Heavy compounds, hip-dominant | Rest: 2-3 min heavy, 90s accessories",
+    warmupType: "lower",
     exercises: [
       { name: "Barbell Hip Thrust", target: "4x6-8 | Tempo 2-1-1", sets: 4 },
       { name: "Romanian Deadlift", target: "4x6-8 | Tempo 3-1-1", sets: 4 },
@@ -532,6 +637,7 @@ const WORKOUTS = {
   "Upper A": {
     title: "UPPER A \u2014 Shoulders & Back Hypertrophy",
     subtitle: "Shoulder capping, back width | Rest: 60-90s",
+    warmupType: "upper",
     exercises: [
       { name: "Seated DB Overhead Press", target: "4x8-10 | Tempo 2-1-1", sets: 4 },
       { name: "Cable Lateral Raise", target: "4x12-15 | Tempo 2-1-2", sets: 4 },
@@ -544,6 +650,7 @@ const WORKOUTS = {
   "Lower B": {
     title: "LOWER B \u2014 Glute & Quad Hypertrophy",
     subtitle: "Moderate loads, higher reps | Rest: 90s, 60s isolation",
+    warmupType: "lower",
     exercises: [
       { name: "Barbell Back Squat", target: "4x10-12 | Tempo 3-1-1", sets: 4 },
       { name: "Walking Lunges (DB)", target: "3x12-15/leg | Tempo 2-1-1", sets: 3 },
@@ -556,6 +663,7 @@ const WORKOUTS = {
   "Upper B": {
     title: "UPPER B \u2014 Back & Arms",
     subtitle: "Back thickness, arm detail | Rest: 60-90s",
+    warmupType: "upper",
     exercises: [
       { name: "Barbell Row", target: "4x8-10 | Tempo 2-1-2", sets: 4 },
       { name: "Single-Arm DB Row", target: "3x10-12/arm | Tempo 2-1-2", sets: 3 },
@@ -568,6 +676,7 @@ const WORKOUTS = {
   "Lower C": {
     title: "LOWER C \u2014 Glute Pump (High-Rep)",
     subtitle: "High reps, chase the burn | Rest: 30-60s",
+    warmupType: "lower",
     exercises: [
       { name: "Banded Barbell Hip Thrust", target: "3x20-25 | Light + band", sets: 3 },
       { name: "DB Step-Up", target: "3x15/leg", sets: 3 },
@@ -912,9 +1021,25 @@ function selectDay(day) {
   renderWorkout();
 }
 
+function renderWarmup() {
+  const w = WORKOUTS[currentDay];
+  const items = WARMUPS[w.warmupType] || [];
+  const section = document.getElementById("warmupSection");
+  const type = w.warmupType === "lower" ? "Lower Body" : "Upper Body";
+  let html = `<div class="warmup-title">${type} Warm-Up</div>`;
+  items.forEach((item, i) => {
+    html += `<div class="warmup-item">
+      <input type="checkbox" id="warmup_${i}">
+      <label for="warmup_${i}">${item}</label>
+    </div>`;
+  });
+  section.innerHTML = html;
+}
+
 function renderWorkout() {
   const w = WORKOUTS[currentDay];
   const section = document.getElementById("workoutSection");
+  renderWarmup();
 
   let html = `<div class="workout-title">${w.title}</div>
     <div class="workout-subtitle">${w.subtitle}</div>`;
@@ -1043,7 +1168,32 @@ async function saveWorkout() {
 
   if (!hasData) { showToast("Log at least one set"); return; }
 
-  const session = { date, day: currentDay, title: w.title, preworkout, exercises, timestamp: Date.now() };
+  // Collect warm-up data
+  const warmupItems = WARMUPS[w.warmupType] || [];
+  const warmup = warmupItems.map((item, i) => ({
+    name: item,
+    done: document.getElementById(`warmup_${i}`)?.checked || false
+  }));
+
+  // Collect extras
+  const extras = {};
+  if (document.getElementById("didStretching")?.checked) {
+    extras.stretching = {
+      duration: document.getElementById("stretchDuration")?.value?.trim() || "",
+      notes: document.getElementById("stretchNotes")?.value?.trim() || ""
+    };
+  }
+  if (document.getElementById("didCardio")?.checked) {
+    extras.cardio = {
+      type: document.getElementById("cardioType")?.value?.trim() || "",
+      duration: document.getElementById("cardioDuration")?.value?.trim() || "",
+      notes: document.getElementById("cardioNotes")?.value?.trim() || ""
+    };
+  }
+  const otherNotes = document.getElementById("otherNotes")?.value?.trim() || "";
+  if (otherNotes) extras.other = otherNotes;
+
+  const session = { date, day: currentDay, title: w.title, preworkout, exercises, warmup, extras, timestamp: Date.now() };
 
   // Save locally
   const history = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
@@ -1062,12 +1212,17 @@ function clearSession() {
     renderWorkout();
     customExerciseCount = 0;
     document.getElementById('customExerciseSection').innerHTML = '';
+    // Reset extras
+    ["didStretching","stretchDuration","stretchNotes","didCardio","cardioType","cardioDuration","cardioNotes","otherNotes"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.type === "checkbox" ? el.checked = false : el.value = ""; }
+    });
   }
 }
 
 // ============ TABS ============
 function showTab(tab) {
-  const tabs = ["log", "focus", "history"];
+  const tabs = ["log", "extras", "focus", "history"];
   document.querySelectorAll(".tab-btn").forEach((b, i) => b.classList.toggle("active", tabs[i] === tab));
   tabs.forEach(t => document.getElementById(t + "Tab").classList.toggle("hidden", t !== tab));
   if (tab === "history") renderHistory();
@@ -1126,6 +1281,39 @@ async function renderHistory() {
       </div>`;
     }).join("");
 
+    // Warm-up summary
+    let warmupHtml = "";
+    if (s.warmup && s.warmup.length > 0) {
+      const doneCount = s.warmup.filter(w => w.done).length;
+      warmupHtml = `<div class="history-extras">
+        <div class="history-extras-label">Warm-Up (${doneCount}/${s.warmup.length})</div>
+        ${s.warmup.map(w => `<div class="history-extras-text">${w.done ? "\u2705" : "\u274c"} ${w.name}</div>`).join("")}
+      </div>`;
+    }
+
+    // Extras summary
+    let extrasHtml = "";
+    if (s.extras) {
+      if (s.extras.stretching) {
+        extrasHtml += `<div class="history-extras">
+          <div class="history-extras-label">Stretching / Mobility</div>
+          <div class="history-extras-text">${s.extras.stretching.duration ? s.extras.stretching.duration + " — " : ""}${s.extras.stretching.notes || ""}</div>
+        </div>`;
+      }
+      if (s.extras.cardio) {
+        extrasHtml += `<div class="history-extras">
+          <div class="history-extras-label">Cardio</div>
+          <div class="history-extras-text">${s.extras.cardio.type ? s.extras.cardio.type : ""}${s.extras.cardio.duration ? " — " + s.extras.cardio.duration : ""}${s.extras.cardio.notes ? " — " + s.extras.cardio.notes : ""}</div>
+        </div>`;
+      }
+      if (s.extras.other) {
+        extrasHtml += `<div class="history-extras">
+          <div class="history-extras-label">Other</div>
+          <div class="history-extras-text">${s.extras.other}</div>
+        </div>`;
+      }
+    }
+
     return `<div class="history-card" id="hcard${i}">
       <div class="history-header" onclick="toggleCard(${i})">
         <div>
@@ -1136,7 +1324,9 @@ async function renderHistory() {
         <span class="history-arrow">&#9660;</span>
       </div>
       <div class="history-detail">
+        ${warmupHtml}
         ${exerciseRows}
+        ${extrasHtml}
         <div class="history-actions">
           <button class="history-btn" onclick="event.stopPropagation();copySession(${i})">Copy</button>
           <button class="history-btn" onclick="event.stopPropagation();exportSession(${i})">Share</button>
