@@ -733,7 +733,7 @@ async function deleteFromCloud(session) {
 
 // ============ SEED HISTORY ============
 function seedHistory() {
-  const SEED_VERSION = 2;
+  const SEED_VERSION = 3;
   const currentVersion = parseInt(localStorage.getItem("tay_seed_version") || "0");
   const existing = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
   if (existing.length > 0 && currentVersion >= SEED_VERSION) return;
@@ -743,7 +743,8 @@ function seedHistory() {
   const seedDates = new Set([
     "2026-02-15-Lower A", "2026-02-17-Upper A", "2026-02-19-Lower B",
     "2026-02-21-Upper B", "2026-02-22-Lower A", "2026-02-24-Upper A",
-    "2026-03-05-Lower B", "2026-03-08-Upper B"
+    "2026-03-05-Lower B", "2026-03-08-Upper B",
+    "2026-03-09-Lower A", "2026-03-10-Upper A"
   ]);
   const userWorkouts = existing.filter(w => !seedDates.has(w.date + "-" + w.day));
 
@@ -859,6 +860,36 @@ function seedHistory() {
         { name: "Overhead Tricep Extension", sets: [], notes: "Skipped", skipped: true }
       ],
       timestamp: new Date("2026-03-08T15:17:00").getTime()
+    },
+    {
+      date: "2026-03-09", day: "Lower A",
+      title: "LOWER A \u2014 Glute & Hamstring Strength",
+      preworkout: false,
+      exercises: [
+        { name: "Romanian Deadlift", sets: ["95x8","115x8","115x8"], notes: "Went heavier than logged", skipped: false },
+        { name: "Barbell Hip Thrust", sets: ["135x8","185x8","235x8","235x8"], notes: "Went heavier than logged", skipped: false },
+        { name: "Bulgarian Split Squat", sets: ["30x8","40x8","40x8"], notes: "Went heavier than logged", skipped: false },
+        { name: "Cable Pull-Through", sets: ["25x12","30x12","35x12"], notes: "Went heavier than logged", skipped: false },
+        { name: "Prone Leg Curl", sets: ["40x12","50x12","55x8"], notes: "Went heavier than logged", skipped: false },
+        { name: "Barbell Back Squat", sets: ["115x10","115x10"], notes: "Added 1-2 sets", skipped: false },
+        { name: "Hip Abduction", sets: [], notes: "Skipped", skipped: true }
+      ],
+      timestamp: new Date("2026-03-09T17:00:00").getTime()
+    },
+    {
+      date: "2026-03-10", day: "Upper A",
+      title: "UPPER A \u2014 Shoulders & Back Hypertrophy",
+      preworkout: false,
+      exercises: [
+        { name: "Lateral Raise", sets: ["10x15","10x15"], notes: "Warm-up", skipped: false },
+        { name: "Seated DB Overhead Press", sets: ["25x10","30x10","30x10","35x8"], notes: "Went heavier than logged", skipped: false },
+        { name: "Cable Lateral Raise", sets: ["5x10","5x10","5x10","5x10"], notes: "Went heavier than logged", skipped: false },
+        { name: "Wide-Grip Lat Pulldown", sets: ["55x10","55x10","55x10","70x10"], notes: "Went heavier than logged", skipped: false },
+        { name: "Rear Delt Fly", sets: ["40x12","40x12","40x12","55x12"], notes: "Went heavier than logged", skipped: false },
+        { name: "Seated Cable Row", sets: ["40x10","40x10","55x10"], notes: "Went heavier than logged", skipped: false },
+        { name: "Face Pulls", sets: ["25x15","30x15","30x15"], notes: "Went heavier than logged", skipped: false }
+      ],
+      timestamp: new Date("2026-03-10T17:00:00").getTime()
     }
   ];
 
