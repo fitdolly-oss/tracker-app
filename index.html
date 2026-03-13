@@ -739,6 +739,14 @@ function seedHistory() {
   if (existing.length > 0 && currentVersion >= SEED_VERSION) return;
   localStorage.setItem("tay_seed_version", SEED_VERSION.toString());
 
+  // Preserve any user-logged workouts (those not matching seed dates/days)
+  const seedDates = new Set([
+    "2026-02-15-Lower A", "2026-02-17-Upper A", "2026-02-19-Lower B",
+    "2026-02-21-Upper B", "2026-02-22-Lower A", "2026-02-24-Upper A",
+    "2026-03-05-Lower B", "2026-03-08-Upper B"
+  ]);
+  const userWorkouts = existing.filter(w => !seedDates.has(w.date + "-" + w.day));
+
   const pastSessions = [
     {
       date: "2026-02-15", day: "Lower A",
@@ -854,7 +862,9 @@ function seedHistory() {
     }
   ];
 
-  localStorage.setItem("tay_workouts", JSON.stringify(pastSessions));
+  // Merge: seed data + any user-logged workouts preserved
+  const merged = [...pastSessions, ...userWorkouts];
+  localStorage.setItem("tay_workouts", JSON.stringify(merged));
 }
 
 // ============ RENDER ============
