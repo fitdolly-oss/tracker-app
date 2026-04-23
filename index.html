@@ -577,6 +577,12 @@
     <label>Supabase Anon Key</label>
     <input type="text" id="settingsSupaKey" placeholder="eyJ...">
     <div id="syncStatus"></div>
+    <label style="margin-top:16px;">Backup your workouts</label>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="exportHistory()">Export</button>
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="triggerImport()">Import</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none;" onchange="importHistory(event)">
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -776,6 +782,59 @@ function updateSyncStatus() {
   }
 }
 
+// ============ BACKUP / RESTORE ============
+function exportHistory() {
+  const workouts = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+  const backup = {
+    app: "tay-workout-tracker",
+    exported_at: new Date().toISOString(),
+    version: 1,
+    settings: JSON.parse(localStorage.getItem("tracker_settings") || "{}"),
+    workouts
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `tay-workouts-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${workouts.length} workouts`);
+}
+
+function triggerImport() {
+  document.getElementById("importFile").click();
+}
+
+function importHistory(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const incoming = Array.isArray(data) ? data : (data.workouts || []);
+      if (!Array.isArray(incoming) || incoming.length === 0) throw new Error("No workouts found in file");
+
+      const existing = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
+      const keyOf = w => `${w.date}-${w.day}-${w.timestamp || ""}`;
+      const existingKeys = new Set(existing.map(keyOf));
+      const added = incoming.filter(w => !existingKeys.has(keyOf(w)));
+      const merged = [...existing, ...added];
+      localStorage.setItem("tay_workouts", JSON.stringify(merged));
+      showToast(`Imported ${added.length} new (${incoming.length - added.length} already there)`);
+      if (typeof renderHistory === "function") renderHistory();
+    } catch (err) {
+      showToast("Import failed: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
 // ============ SUPABASE ============
 function initSupabase() {
   if (settings.supabaseUrl && settings.supabaseKey) {
@@ -845,17 +904,10 @@ function seedHistory() {
   const SEED_VERSION = 3;
   const currentVersion = parseInt(localStorage.getItem("tay_seed_version") || "0");
   const existing = JSON.parse(localStorage.getItem("tay_workouts") || "[]");
-  if (existing.length > 0 && currentVersion >= SEED_VERSION) return;
-  localStorage.setItem("tay_seed_version", SEED_VERSION.toString());
+  if (currentVersion >= SEED_VERSION) return;
 
-  // Preserve any user-logged workouts (those not matching seed dates/days)
-  const seedDates = new Set([
-    "2026-02-15-Lower A", "2026-02-17-Upper A", "2026-02-19-Lower B",
-    "2026-02-21-Upper B", "2026-02-22-Lower A", "2026-02-24-Upper A",
-    "2026-03-05-Lower B", "2026-03-08-Upper B",
-    "2026-03-09-Lower A", "2026-03-10-Upper A"
-  ]);
-  const userWorkouts = existing.filter(w => !seedDates.has(w.date + "-" + w.day));
+  // User workouts are sacred — never overwrite. Seed only fills gaps.
+  const existingKeys = new Set(existing.map(w => w.date + "-" + w.day));
 
   const pastSessions = [
     {
@@ -1002,9 +1054,11 @@ function seedHistory() {
     }
   ];
 
-  // Merge: seed data + any user-logged workouts preserved
-  const merged = [...pastSessions, ...userWorkouts];
+  // Only add seed sessions for dates the user hasn't logged themselves
+  const toAdd = pastSessions.filter(s => !existingKeys.has(s.date + "-" + s.day));
+  const merged = [...existing, ...toAdd];
   localStorage.setItem("tay_workouts", JSON.stringify(merged));
+  localStorage.setItem("tay_seed_version", SEED_VERSION.toString());
 }
 
 // ============ RENDER ============
